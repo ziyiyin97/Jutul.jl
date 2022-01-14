@@ -12,5 +12,5 @@ include("models/current_collector_temp.jl")
 include("models/activematerial.jl")
 include("models/ocd.jl")
 include("models/simple_elyte.jl")
-
+include("models/CurrentAndVoltageBoundary.jl")
 include("models/battery_cross_terms.jl") # Works now
