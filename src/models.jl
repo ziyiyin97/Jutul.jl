@@ -344,8 +344,10 @@ Perform updates of everything that depends on the state.
 
 This includes properties, governing equations and the linearized system
 """
-function update_state_dependents!(storage, model::TervModel, dt, forces; time = NaN)
-    @timeit "secondary variables" update_secondary_variables!(storage, model)
+function update_state_dependents!(storage, model::TervModel, dt, forces; time = NaN, update_secondary = true)
+    if update_secondary
+        @timeit "secondary variables" update_secondary_variables!(storage, model)
+    end
     @timeit "equations" update_equations!(storage, model, dt)
     @timeit "forces" apply_forces!(storage, model, dt, forces; time = time)
     @timeit "boundary conditions" apply_boundary_conditions!(storage, model)
@@ -499,6 +501,7 @@ function update_primary_variables!(primary_storage, dx, model::TervModel; check 
     cell_major = is_cell_major(layout)
     offset = 0
     primary = get_primary_variables(model)
+    ok = true
     if cell_major
         offset = 0 # Offset into global r array
         for u in get_primary_variable_ordered_entities(model)
@@ -519,7 +522,8 @@ function update_primary_variables!(primary_storage, dx, model::TervModel; check 
                 ni = degrees_of_freedom_per_entity(model, p)
                 dxi = view(Dx, :, (local_offset+1):(local_offset+ni))
                 if check
-                    check_increment(dxi, p, pkey)
+                    ok_i = check_increment(dxi, p, pkey)
+                    ok = ok && ok_i
                 end
                 @timeit "$pkey" update_primary_variable!(primary_storage, p, pkey, model, dxi)
                 local_offset += ni
@@ -532,11 +536,15 @@ function update_primary_variables!(primary_storage, dx, model::TervModel; check 
             rng = (1:n) .+ offset
             dxi = view(dx, rng)
             if check
-                check_increment(dxi, p, pkey)
+                ok_i = check_increment(dxi, p, pkey)
+                ok = ok && ok_i
             end
             @timeit "$pkey" update_primary_variable!(primary_storage, p, pkey, model, dxi)
             offset += n
         end
+    end
+    if !ok
+        error("Primary variables recieved invalid updates.")
     end
 end
 

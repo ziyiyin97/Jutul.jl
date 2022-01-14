@@ -246,28 +246,23 @@ end
 """
 Half face Darcy flux with separate potential. (Compositional version)
 """
-function update_half_face_flux!(law::ConservationLaw, storage, model::SimulationModel{D, S}, dt, flowd::TwoPointPotentialFlow{U, K, T}) where {D,S<:TwoPhaseCompositionalSystem,U,K,T<:DarcyMassMobilityFlow}
-    state = storage.state
-    # pot = state.CellNeighborPotentialDifference
+function update_half_face_flux!(flux::AbstractArray, state, model::SimulationModel{D, S}, dt, flow_disc::TwoPointPotentialFlow{U, K, T}) where {D,S<:TwoPhaseCompositionalSystem,U,K,T<:DarcyMassMobilityFlow}
     X = state.LiquidMassFractions
     Y = state.VaporMassFractions
     kr = state.RelativePermeabilities
     μ = state.PhaseViscosities
     ρ = state.PhaseMassDensities
     P = state.Pressure
-    fr = state.FlashResults
     Sat = state.Saturations
 
-    flux = get_entries(law.half_face_flux_cells)
-    flow_disc = law.flow_discretization
     conn_data = flow_disc.conn_data
     pc, ref_index = capillary_pressure(model, state)
 
     nc, nf = size(flux)
     tb = thread_batch(model.context)
     @batch minbatch = tb for i = 1:nf
-        qi = view(flux, :, i)
-        cd = conn_data[i]
+        @inbounds qi = view(flux, :, i)
+        @inbounds cd = conn_data[i]
         compositional_flux_gravity!(qi, cd, P, X, Y, ρ, kr, Sat, μ, pc, ref_index)
     end
 end
@@ -308,7 +303,7 @@ function compute_compositional_flux_gravity!(q, c, i, P, X, Y, ρ, kr, Sat, μ, 
     F_v, c_v = phase_mass_flux(Ψ_v, c, i, ρ, kr, μ, v)
 
     for i in eachindex(q)
-        q[i] = F_l*X[i, c_l] + F_v*Y[i, c_v]
+        @inbounds q[i] = F_l*X[i, c_l] + F_v*Y[i, c_v]
     end
 end
 
