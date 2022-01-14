@@ -134,12 +134,12 @@ function setup_cross_terms!(storage, model::MultiModel, couplings)#::ModelCoupli
                               crosstype;
                               transpose = true)
             if !haskey(storage[:cross_terms][source],target)
-                setindex!(storage[:cross_terms][source], Dict(def_source_eq => cs), target)
+                setindex!(storage[:cross_terms][source], Dict(def_target_eq => cs), target)
             else
-                if !haskey(storage[:cross_terms][source][target], def_source_eq)
-                    setindex!(storage[:cross_terms][source][target],cs, def_source_eq)
+                if !haskey(storage[:cross_terms][source][target], def_target_eq)
+                    setindex!(storage[:cross_terms][source][target],cs, def_target_eq)
                 else
-                    storage[:cross_terms][source][target][def_source_eq] = cs 
+                    storage[:cross_terms][source][target][def_target_eq] = cs 
                 end
             end                  
             #storage[:cross_terms][source][target][def_source_eq] = cs
