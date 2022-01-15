@@ -59,7 +59,8 @@ function apply_forces_to_equation!(storage,
     cell = force.cell
     rate = force.src
     tup = 0.1
-    inputI = 9.4575
+    #inputI = 9.4575
+    inputI = rate
     #equation = get_entries(eq)
     acc = get_entries(law.accumulation)
     t = time

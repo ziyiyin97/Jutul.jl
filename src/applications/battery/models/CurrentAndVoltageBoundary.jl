@@ -1,9 +1,9 @@
 export CurrentAndVoltageSystem, CurrentAndVoltageDomain, CurrentForce, VoltageForce
 export VoltageVAr, CurrentVar
 
-struct CurrentAndVoltageSystem <: TervSystem end
+struct CurrentAndVoltageSystem <: JutulSystem end
 
-struct CurrentAndVoltageDomain <: TervDomain end
+struct CurrentAndVoltageDomain <: JutulDomain end
 active_entities(d::CurrentAndVoltageDomain, ::Any) = [1]
 
 const CurrentAndVoltageModel  = SimulationModel{CurrentAndVoltageDomain,CurrentAndVoltageSystem}
@@ -18,7 +18,7 @@ end
 struct VoltageForce
     current
 end
-#abstract type DiagonalEquation <: TervEquation end
+#abstract type DiagonalEquation <: JutulEquation end
 # Equations
 struct CurrentEquation <: DiagonalEquation
     equation
@@ -98,33 +98,37 @@ end
 #    #equation[:control_equiation] = phi - voltageVal(time)
 #end
 
-function update_cross_term!(ct::InjectiveCrossTerm, eq::CurrentEquation, target_storage, source_storage,# target_model, source_model, 
-    target_model, 
-    source_model, dt)
-    X_T = target_storage.state.Phi#Voltage
-    X_S = source_storage.state.Phi
-    function f(X_S, X_T)
-        (X_T - X_S)*1e-7
-    end
-    # Source term with AD context from source model - will end up as off-diagonal block
-    @. ct.crossterm_source = f(X_S, value(X_T))
-    # Source term with AD context from target model - will be inserted into equation
-    @. ct.crossterm_target = f(value(X_S), X_T)
-end
+# function update_cross_term!(ct::InjectiveCrossTerm, eq::CurrentEquation, target_storage, source_storage,# target_model, source_model, 
+#     target_model, 
+#     source_model, dt)
+#     X_T = target_storage.state.Phi#Voltage
+#     X_S = source_storage.state.Phi
+#     function f(X_S, X_T)
+#         (X_T - X_S)*1e-7
+#     end
+#     # Source term with AD context from source model - will end up as off-diagonal block
+#     @. ct.crossterm_source = f(X_S, value(X_T))
+#     # Source term with AD context from target model - will be inserted into equation
+#     @. ct.crossterm_target = f(value(X_S), X_T)
+# end
 
-function update_cross_term!(ct::InjectiveCrossTerm, eq::Conservation{Charge}, target_storage, source_storage,# target_model, source_model, 
-    target_model, 
-    source_model, dt)
-    X_T = target_storage.state.Phi
-    X_S = source_storage.state.Phi#voltage
-    function f(X_S, X_T)
-        (X_T - X_S)*1e-7
-    end
-    # Source term with AD context from source model - will end up as off-diagonal block
-    @. ct.crossterm_source = f(X_S, value(X_T))
-    # Source term with AD context from target model - will be inserted into equation
-    @. ct.crossterm_target = f(value(X_S), X_T)
-end
+# function update_cross_term!(ct::InjectiveCrossTerm, 
+#     eq::Conservation{Charge},  
+#     target_storage, source_storage,# target_model, source_model,
+#     target_model::SimulationModel{<:Any, <:Any, <:Any, <:Any}, 
+#     source_model::SimulationModel{<:Any, TS, <:Any, <:Any}, 
+#     target_model, 
+#     source_model, dt)
+#     X_T = target_storage.state.Phi
+#     X_S = source_storage.state.Phi#voltage
+#     function f(X_S, X_T)
+#         (X_T - X_S)*1e-7
+#     end
+#     # Source term with AD context from source model - will end up as off-diagonal block
+#     @. ct.crossterm_source = f(X_S, value(X_T))
+#     # Source term with AD context from target model - will be inserted into equation
+#     @. ct.crossterm_target = f(value(X_S), X_T)
+# end
 
 function select_primary_variables!(S, domain, system::CurrentAndVoltageSystem, formulation)
     S[:Phi] = VoltVar()

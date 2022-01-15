@@ -8,29 +8,13 @@ function ccinterfaceflux!(src, phi_1,phi_2)
 end
 
 function update_cross_term!(
-    ct::InjectiveCrossTerm, eq::Conservation{Charge}, 
+    ct::InjectiveCrossTerm, eq::EQS, 
     target_storage,
     source_storage,
     target_model::SimulationModel{<:Any, TT, <:Any, <:Any}, 
-    source_model::SimulationModel{<:Any, <:Any, <:Any, <:Any}, 
-    target, source, dt
-    ) where {TT <: CurrentCollector} # or TS <: CurrentCollector
-
-    phi_t = target_storage.state.Phi[ct.impact.target]
-    phi_s = source_storage.state.Phi[ct.impact.source]
-
-    ccinterfaceflux!(ct.crossterm_source, phi_s, value.(phi_t))
-    ccinterfaceflux!(ct.crossterm_target, value.(phi_s), phi_t)
-end
-
-function update_cross_term!(
-    ct::InjectiveCrossTerm, eq::Conservation{Charge}, 
-    target_storage,
-    source_storage,
-    target_model::SimulationModel{<:Any, <:Any, <:Any, <:Any}, 
     source_model::SimulationModel{<:Any, TS, <:Any, <:Any}, 
     target, source, dt
-    ) where {TS <: CurrentCollector}
+    ) where {TT <: Union{CurrentCollector, CurrentAndVoltageSystem, ActiveMaterial},TS <: Union{CurrentCollector, CurrentAndVoltageSystem, ActiveMaterial},EQS <: Union{Conservation{Charge},CurrentEquation}} # or TS <: CurrentCollector
 
     phi_t = target_storage.state.Phi[ct.impact.target]
     phi_s = source_storage.state.Phi[ct.impact.source]
@@ -38,6 +22,22 @@ function update_cross_term!(
     ccinterfaceflux!(ct.crossterm_source, phi_s, value.(phi_t))
     ccinterfaceflux!(ct.crossterm_target, value.(phi_s), phi_t)
 end
+
+# function update_cross_term!(
+#     ct::InjectiveCrossTerm, eq::EQS, 
+#     target_storage,
+#     source_storage,
+#     target_model::SimulationModel{<:Any, <:Any, <:Any, <:Any}, 
+#     source_model::SimulationModel{<:Any, TS, <:Any, <:Any}, 
+#     target, source, dt
+#     ) where {TS <: Union{CurrentCollector,CurrentAndVoltageSystem},EQS <: Union{Conservation{Charge},CurrentEquation}}
+
+#     phi_t = target_storage.state.Phi[ct.impact.target]
+#     phi_s = source_storage.state.Phi[ct.impact.source]
+
+#     ccinterfaceflux!(ct.crossterm_source, phi_s, value.(phi_t))
+#     ccinterfaceflux!(ct.crossterm_target, value.(phi_s), phi_t)
+# end
 
 function regularizedSqrt(x, th)
     ind = (x <= th)

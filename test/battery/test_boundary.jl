@@ -3,10 +3,10 @@ Simple current collector
 A conductro with constant conductivity
 =#
 using Revise
-using Terv
+using Jutul
 using Test
 #include("../../src/applications/battery/models/CurrentAndVoltageBoundary.jl")
-#ENV["JULIA_DEBUG"] = Terv;
+#ENV["JULIA_DEBUG"] = Jutul;
 
 
 

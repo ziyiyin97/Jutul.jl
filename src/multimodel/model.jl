@@ -94,7 +94,7 @@ function setup_cross_terms!(storage, model::MultiModel, couplings)#::ModelCoupli
         target = coupling.target[:model]
         source = coupling.source[:model]
         def_target_eq = coupling.target[:equation]
-        def_source_eq = coupling.target[:equation]
+        def_source_eq = coupling.source[:equation]
         intersection = coupling.intersection
         issym = coupling.issym
         crosstype = coupling.crosstype
@@ -114,17 +114,17 @@ function setup_cross_terms!(storage, model::MultiModel, couplings)#::ModelCoupli
 
         @assert !isnothing(ct)
         if !haskey(storage[:cross_terms][target],source)
-            setindex!(storage[:cross_terms][target], Dict(def_source_eq => ct), source)
+            setindex!(storage[:cross_terms][target], Dict(def_target_eq => ct), source)
         else
-            if !haskey(storage[:cross_terms][target][source], def_source_eq)
-                setindex!(storage[:cross_terms][target][source],ct, def_source_eq)
+            if !haskey(storage[:cross_terms][target][source], def_target_eq)
+                setindex!(storage[:cross_terms][target][source],ct, def_target_eq)
             else
                 storage[:cross_terms][target][source][def_target_eq] = ct 
             end
         end
         
         if(issym)
-            source_eq = storage[target][:equations][def_source_eq]
+            source_eq = storage[source][:equations][def_source_eq]
             cs = setup_cross_term(source_eq,
                               source_model,
                               target_model,
@@ -134,12 +134,12 @@ function setup_cross_terms!(storage, model::MultiModel, couplings)#::ModelCoupli
                               crosstype;
                               transpose = true)
             if !haskey(storage[:cross_terms][source],target)
-                setindex!(storage[:cross_terms][source], Dict(def_target_eq => cs), target)
+                setindex!(storage[:cross_terms][source], Dict(def_source_eq => cs), target)
             else
-                if !haskey(storage[:cross_terms][source][target], def_target_eq)
-                    setindex!(storage[:cross_terms][source][target],cs, def_target_eq)
+                if !haskey(storage[:cross_terms][source][target], def_source_eq)
+                    setindex!(storage[:cross_terms][source][target],cs, def_source_eq)
                 else
-                    storage[:cross_terms][source][target][def_target_eq] = cs 
+                    storage[:cross_terms][source][target][def_source_eq] = cs 
                 end
             end                  
             #storage[:cross_terms][source][target][def_source_eq] = cs

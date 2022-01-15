@@ -5,7 +5,7 @@ The different potentials are independent (diagonal onsager matrix),
 and conductivity, diffusivity is constant.
 =#
 using Revise
-using Terv
+using Jutul
 using MAT
 using Plots
 
@@ -136,7 +136,7 @@ function setup_model(exported_all)
             PP = model_pp,
             BPP = model_bpp
         ), 
-        groups = groups)
+        groups = groups)    
 
     state0 = exported_all["state0"]
 
@@ -298,8 +298,9 @@ function setup_coupling!(model, exported_all)
     crosstermtype = InjectiveCrossTerm
     issym = true
     coupling = MultiModelCoupling(source,target, intersection; crosstype = crosstermtype, issym = issym)
+    push!(model.couplings, coupling)
     
-    # setup coupling PP <-> PAM charge
+    #setup coupling PP <-> PAM charge
     target = Dict( 
         :model => :PP,
         :equation => :charge_conservation
@@ -316,49 +317,59 @@ function setup_coupling!(model, exported_all)
         )
     intersection = (srange, trange, Cells(), Cells())
     crosstermtype = InjectiveCrossTerm
-    issym = false
-    coupling = MultiModelCoupling(source,target, intersection; crosstype = crosstermtype, issym = issym)
-    
-    #push!(model.couplings, coupling)
-
-    source = Dict( 
-        :model => :PP,
-        :equation => :charge_conservation
-        )
-    target = Dict( 
-        :model => :BPP,
-        :equation => :current_equation
-        )
-    srange = Int64.(
-        Vector{Float64}([10.0])
-        )
-    trange = Int64.(
-        Vector{Float64}([1])
-        )
-    intersection = (srange, trange, Cells(), Cells())
-    crosstermtype = InjectiveCrossTerm
     issym = true
     coupling = MultiModelCoupling(source,target, intersection; crosstype = crosstermtype, issym = issym)
     
-    
     push!(model.couplings, coupling)
+
+    # source = Dict( 
+    #     :model => :PP,
+    #     :equation => :charge_conservation
+    #     )
+    # target = Dict( 
+    #     :model => :BPP,
+    #     :equation => :current_equation
+    #     )
+    # srange = Int64.(
+    #     Vector{Float64}([10.0])
+    #     )
+    # trange = Int64.(
+    #     Vector{Float64}([1])
+    #     )
+    # intersection = (srange, trange, Cells(), Cells())
+    # crosstermtype = InjectiveCrossTerm
+    # issym = false
+    # coupling = MultiModelCoupling(source,target, intersection; crosstype = crosstermtype, issym = issym)
+    
+    
+    #push!(model.couplings, coupling)
 end
 
 
 ##
-
+function currentFun(t,inputI)
+    #inputI = 9.4575
+    tup = 0.1
+    if ( t<= tup)
+        val = sineup(0, inputI, 0, tup, t) 
+    else
+        val = inputI;
+    end
+end
 
 function test_battery()
+##
     name="model1d_notemp"
-    fn = string(dirname(pathof(Terv)), "/../data/models/", name, ".mat")
+    fn = string(dirname(pathof(Jutul)), "/../data/models/", name, ".mat")
     exported_all = MAT.matread(fn)
 
     model, state0, parameters, grids = setup_model(exported_all)    
     setup_coupling!(model, exported_all)
-    
-    currentFun(time) = -0.0227702
-    forces_pp = (src = SourceAtCell(10,-0.0227702),)
-    currents = Dict( :current => currentFun)
+    inputI = 9.4575
+    cFun(time) = currentFun(time, inputI)
+    forces_pp = nothing 
+    #forces_pp = (src = SourceAtCell(10,9.4575*0.0),)
+    currents = Dict( :current => cFun)
     forces = Dict(
         :CC => nothing,
         :NAM => nothing,
@@ -375,10 +386,12 @@ function test_battery()
     timesteps = exported_all["schedule"]["step"]["val"][1:27]
     cfg = simulator_config(sim)
     cfg[:linear_solver] = nothing
-    cfg[:info_level] = 1
+    cfg[:info_level] = 0
     cfg[:debug_level] = 0
     cfg[:max_residual] = 1e20
     cfg[:min_nonlinear_iterations] = 10
+    cfg[:extra_timing] = true
+##
 
     states, report = simulate(sim, timesteps, forces = forces, config = cfg)
     stateref = exported_all["states"]
@@ -421,6 +434,7 @@ display(plot1)
 ##
 
 for (i, dt) in enumerate(timesteps)
+#for step in 1:1   
     refstep=i
     sim_step=i
 
@@ -507,7 +521,7 @@ for (i, dt) in enumerate(timesteps)
 
     display(plot!(p1, p2, p3,layout = (3, 1), legend = false))
 end
-
+error()
 ##
 E = Matrix{Float64}(undef,27,2)
 for step in 1:27
