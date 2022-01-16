@@ -2,10 +2,11 @@ struct MultiModelCoupling
     target
     source
     intersection
+    properties
     issym
     crosstype
-    function MultiModelCoupling(target, source, intersection; crosstype = InjectiveCrossTerm, issym = true)
-        new(target,source,intersection, issym, crosstype)
+    function MultiModelCoupling(target, source, intersection; properties = nothing, crosstype = InjectiveCrossTerm, issym = true)
+        new(target,source,intersection, properties, issym, crosstype)
     end   
 end
 
@@ -65,6 +66,7 @@ and is added into that position upon application)
 
 struct InjectiveCrossTerm <: CrossTerm
     impact                 # 2 by N - first row is target, second is source
+    properties             # properties for each impact
     entities               # tuple - first tuple is target, second is source
     crossterm_target       # The cross-term, with AD values taken relative to the targe
     crossterm_source       # Same cross-term, AD values taken relative to the source
@@ -74,7 +76,7 @@ struct InjectiveCrossTerm <: CrossTerm
     npartials_source       # (in source)
     target_symbol          # Symbol of target model
     source_symbol          # Symbol of source model
-    function InjectiveCrossTerm(target_eq, target_model, source_model, intersection = nothing; target = nothing, source = nothing)
+    function InjectiveCrossTerm(target_eq, target_model, source_model, intersection = nothing; target = nothing, source = nothing, properties = nothing)
         context = target_model.context
         target_entity = associated_entity(target_eq)
         if isnothing(intersection)
@@ -100,14 +102,14 @@ struct InjectiveCrossTerm <: CrossTerm
         # Units and overlap - target, then source
         entities = (target = target_entity, source = source_entity)
         overlap = (target = target_impact, source = source_impact)
-        new(overlap, entities, c_term_target, c_term_source, c_term_source_c, equations_per_entity, npartials_target, npartials_source, target, source)
+        new(overlap, properties, entities, c_term_target, c_term_source, c_term_source_c, equations_per_entity, npartials_target, npartials_source, target, source)
     end
 end
 
-function setup_cross_term(target_eq::JutulEquation, target_model, source_model, target, source, intersection, type::Type{InjectiveCrossTerm}; transpose = false)
+function setup_cross_term(target_eq::JutulEquation, target_model, source_model, target, source, intersection, type::Type{InjectiveCrossTerm}; transpose = false, properties = nothing)
     if(transpose)
         intersection = transpose_intersection(intersection)
     end
-    ct = InjectiveCrossTerm(target_eq, target_model, source_model, intersection; target=target, source=source)
+    ct = InjectiveCrossTerm(target_eq, target_model, source_model, intersection; target=target, source=source, properties = properties)
     return ct
 end
