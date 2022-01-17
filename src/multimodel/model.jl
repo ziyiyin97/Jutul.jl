@@ -622,7 +622,7 @@ function update_secondary_variables!(storage, model::MultiModel)
     submodels_storage_apply!(storage, model, update_secondary_variables!)
 end
 
-function check_convergence(storage, model::MultiModel; tol = 1e-3, extra_out = false, kwarg...)
+function check_convergence(storage, model::MultiModel; tol = nothing, extra_out = false, kwarg...)
     converged = true
     err = 0
     offset = 0

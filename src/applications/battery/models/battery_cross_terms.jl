@@ -40,6 +40,7 @@ end
 # end
 
 function regularizedSqrt(x, th)
+    #x,th = promote(xi,thi)
     ind = (x <= th)
     if !ind
         y = x^0.5

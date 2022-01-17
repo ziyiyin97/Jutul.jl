@@ -18,12 +18,20 @@ struct SourceAtCell
     end 
 end
 
+function getHalftrans(exported_all,model1, model2, faces1,faces2,cell1,cells2)
+    T_all1 = model1["operators"]["T_all"]
+    T_all2 = model1["operators"]["T_all"]
+    T = 1.0./((1.0./T_all1[faces1])+(1.0./T_all1[faces2]))
+    return T
+    #N_all = Int64.(exported["G"]["faces"]["neighbors"])
+end
 ##
 function make_system(exported,sys,bcfaces,srccells)
     T_all = exported["operators"]["T_all"]
     N_all = Int64.(exported["G"]["faces"]["neighbors"])
     isboundary = (N_all[bcfaces,1].==0) .| (N_all[bcfaces,2].==0)
     @assert all(isboundary)
+    #bcfaces = exported_all["model"]["NegativeElectrode"]["CurrentCollector"]["couplingTerm"]["couplingcells"]
     bccells = N_all[bcfaces,1] + N_all[bcfaces,2]
     T_hf   = T_all[bcfaces]
     bcvaluesrc = ones(size(srccells))
@@ -43,7 +51,13 @@ function make_system(exported,sys,bcfaces,srccells)
     phi0 = 1.0
     C0 = 1.
     T0 = 298.15
-    D = -0.7e-10 # ???
+    #D = -0.7e-10 # ???
+    # D = - exported_all["model"]["NegativeElectrode"]["ElectrodeActiveComponent"]["InterDiffusionCoefficient"]
+    if haskey(exported,"InterDiffusionCoefficient")
+        D = - exported["InterDiffusionCoefficient"]
+    else
+        D =  -0.0
+    end
     if isa(exported["EffectiveElectricalConductivity"], Matrix)
         σ = exported["EffectiveElectricalConductivity"][1]
     else
@@ -80,12 +94,25 @@ function make_system(exported,sys,bcfaces,srccells)
 end
 
 ##
+function convertToIntVector(x::Float64)
+    vec = Int64.(
+        Vector{Float64}([x])
+    )
+    return vec
+end
+ function convertToIntVector(x::Matrix{Float64})
+    vec = Int64.(   
+    Vector{Float64}(x[:,1])
+    )
+    return vec
+ end
 
 function setup_model(exported_all)
     exported_cc = exported_all["model"]["NegativeElectrode"]["CurrentCollector"];
 
     sys_cc = CurrentCollector()
-    bcfaces=[1]
+    
+    bcfaces = convertToIntVector(exported_all["model"]["NegativeElectrode"]["CurrentCollector"]["couplingTerm"]["couplingfaces"])
     srccells = []
     (model_cc, G_cc, state0_cc, parm_cc,init_cc) = make_system(exported_cc, sys_cc, bcfaces, srccells)
     
@@ -147,7 +174,12 @@ function setup_model(exported_all)
     init_pam[:Phi] = state0["PositiveElectrode"]["ElectrodeActiveComponent"]["phi"][1]  #*0
     init_nam[:C] = state0["NegativeElectrode"]["ElectrodeActiveComponent"]["c"][1] 
     init_pam[:C] = state0["PositiveElectrode"]["ElectrodeActiveComponent"]["c"][1]
-    init_elyte[:C] = state0["Electrolyte"]["cs"][1][1]
+    #init_elyte[:C] = state0["Electrolyte"]["cs"][1][1]
+    if haskey(state0["Electrolyte"],"cs")
+        init_elyte[:C] = state0["Electrolyte"]["cs"][1][1]# for compatibility to old
+    else
+        init_elyte[:C] = state0["Electrolyte"]["c"][1]
+    end
     init_bpp = Dict(:Phi => 1.0)
 
     init = Dict(
@@ -309,12 +341,19 @@ function setup_coupling!(model, exported_all)
         :model => :BPP,
         :equation => :current_equation
         )
-    srange = Int64.(
-        Vector{Float64}([1.0])
-        )
-    trange = Int64.(
-        Vector{Float64}([10])
-        )
+    trange = convertToIntVector(
+            exported_all["model"]["PositiveElectrode"]["CurrentCollector"]["couplingTerm"]["couplingcells"]
+        )    
+    srange = Int64.(ones(size(trange)))
+        
+    #T_all = exported["operators"]["T_all"]
+    #N_all = Int64.(exported["G"]["faces"]["neighbors"])
+    #isboundary = (N_all[bcfaces,1].==0) .| (N_all[bcfaces,2].==0)
+    #@assert all(isboundary)
+    #bcfaces = exported_all["model"]["NegativeElectrode"]["CurrentCollector"]["couplingTerm"]["couplingcells"]
+    #bccells = N_all[bcfaces,1] + N_all[bcfaces,2]
+    #T_hf   = T_all[bcfaces]
+   
     intersection = (srange, trange, Cells(), Cells())
     crosstermtype = InjectiveCrossTerm
     issym = true
@@ -357,15 +396,16 @@ function currentFun(t,inputI)
     end
 end
 
-function test_battery()
+function test_battery(name)
 ##
-    name="model1d_notemp"
+    #name="model1d_notemp"
     fn = string(dirname(pathof(Jutul)), "/../data/models/", name, ".mat")
     exported_all = MAT.matread(fn)
 
     model, state0, parameters, grids = setup_model(exported_all)    
     setup_coupling!(model, exported_all)
-    inputI = 9.4575
+    #inputI = 9.4575
+    inputI = exported_all["states"][10]["PositiveElectrode"]["CurrentCollector"]["I"]
     cFun(time) = currentFun(time, inputI)
     forces_pp = nothing 
     #forces_pp = (src = SourceAtCell(10,9.4575*0.0),)
@@ -379,32 +419,55 @@ function test_battery()
         :BPP => currents
     )
     for (k, p) in parameters
-        p[:tolerances][:default] = 1e-14
+        p[:tolerances][:default] = 1e-3
     end
-
+    #parameters[:PP][:charge_conservation]=1e-3
     sim = Simulator(model, state0 = state0, parameters = parameters, copy_state = true)
-    timesteps = exported_all["schedule"]["step"]["val"][1:27]
+    #timesteps = exported_all["schedule"]["step"]["val"][1:27]
+    timesteps = exported_all["schedule"]["step"]["val"][1:29]
+    cfg = simulator_config(sim)
     cfg = simulator_config(sim)
     cfg[:linear_solver] = nothing
-    cfg[:info_level] = 0
+    cfg[:info_level] = 2
     cfg[:debug_level] = 0
     cfg[:max_residual] = 1e20
-    cfg[:min_nonlinear_iterations] = 10
+    cfg[:min_nonlinear_iterations] = 3
     cfg[:extra_timing] = true
 ##
 
     states, report = simulate(sim, timesteps, forces = forces, config = cfg)
     stateref = exported_all["states"]
 
-    return states, grids, state0, stateref, parameters, exported_all, model, timesteps, cfg
+    return states, grids, state0, stateref, parameters, exported_all, model, timesteps, cfg, report
 end
 
 ##
-
-states, grids, state0, stateref, parameters, exported_all, model, timesteps, cfg = test_battery();
-
+name="model1d_notemp"
+name="model1D_50"
+#name="model1D_500"
+#name="model1D_5000"
+#name="model2D_1100"
+#name="sector_1656"
+#name="model3D_492"#.mat
+#name="sector_1656"
+#name="model3D_3936"
+#name="sector_55200" #Tobig for direct linear_solver
+#name="spiral_16560"
+states, grids, state0, stateref, parameters, exported_all, model, timesteps, cfg, report = test_battery(name);
+steps = size(states, 1)
+E = Matrix{Float64}(undef,steps,2)
+for step in 1:steps
+    phi = states[step][:PP][:Phi][10]
+    E[step,1] = phi
+    phi_ref = stateref[step]["PositiveElectrode"]["ElectrodeActiveComponent"]["phi"][10]
+    E[step,2] = phi_ref
+end
+plot1 = Plots.plot([], []; title = "E", size=(1000, 800))
+plot!(plot1,cumsum(timesteps),E)
+closeall()
+display(plot1)
 ##
-
+error()
 using Plots
 
 function plot_phi()
@@ -433,8 +496,8 @@ display(plot1)
 
 ##
 
-for (i, dt) in enumerate(timesteps)
-#for step in 1:1   
+#for (i, dt) in enumerate(timesteps)
+for i in 1:15   
     refstep=i
     sim_step=i
 
@@ -581,3 +644,7 @@ i=4;plot([states[i][:ELYTE][:C], stateref[i]["Electrolyte"]["cs"][:,1]])
 i=10;plot([states[i][:PAM][:C], stateref[i]["Electrolyte"]["cs"][:,1]])
 i=10;plot([states[i][:NAM][:C], stateref[i]["NegativeElectrode"]["ElectrodeActiveComponent"]["c"][:,1]])
 i=10;plot([states[i][:PAM][:C], stateref[i]["PositiveElectrode"]["ElectrodeActiveComponent"]["c"][:,1]])
+
+i=10;plot([states[i][:CC][:Phi],stateref[i]["NegativeElectrode"]["CurrentCollector"]["phi"]])
+i=10;plot([states[i][:NAM][:Phi],stateref[i]["NegativeElectrode"]["ElectrodeActiveComponent"]["phi"]])
+i=10;plot([states[i][:ELYTE][:Phi], stateref[i]["Electrolyte"]["phi"]])
