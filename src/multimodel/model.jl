@@ -96,6 +96,7 @@ function setup_cross_terms!(storage, model::MultiModel, couplings)#::ModelCoupli
         def_target_eq = coupling.target[:equation]
         def_source_eq = coupling.source[:equation]
         intersection = coupling.intersection
+        properties = coupling.properties
         issym = coupling.issym
         crosstype = coupling.crosstype
         @assert !(target == source)
@@ -110,7 +111,9 @@ function setup_cross_terms!(storage, model::MultiModel, couplings)#::ModelCoupli
                               target,
                               source,
                               intersection,
-                              crosstype;transpose = false)
+                              crosstype;
+                              properties = properties,
+                              transpose = false)
 
         @assert !isnothing(ct)
         if !haskey(storage[:cross_terms][target],source)
@@ -132,6 +135,7 @@ function setup_cross_terms!(storage, model::MultiModel, couplings)#::ModelCoupli
                               target,
                               intersection,
                               crosstype;
+                              properties = properties,
                               transpose = true)
             if !haskey(storage[:cross_terms][source],target)
                 setindex!(storage[:cross_terms][source], Dict(def_source_eq => cs), target)

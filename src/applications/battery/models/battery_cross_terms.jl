@@ -1,9 +1,9 @@
 # interface flux between current conductors
 # 1e7 should be the harmonic mean of hftrans/conductivity
-function ccinterfaceflux!(src, phi_1,phi_2)
+function ccinterfaceflux!(src, phi_1,phi_2,trans)
     for i in eachindex(phi_1)
         src[i] = (phi_2[i] - phi_1[i])
-        src[i] *= -1e7
+        src[i] *= -trans[i]
     end
 end
 
@@ -15,12 +15,12 @@ function update_cross_term!(
     source_model::SimulationModel{<:Any, TS, <:Any, <:Any}, 
     target, source, dt
     ) where {TT <: Union{CurrentCollector, CurrentAndVoltageSystem, ActiveMaterial},TS <: Union{CurrentCollector, CurrentAndVoltageSystem, ActiveMaterial},EQS <: Union{Conservation{Charge},CurrentEquation}} # or TS <: CurrentCollector
-
+    trans = ct.properties[:trans]
     phi_t = target_storage.state.Phi[ct.impact.target]
     phi_s = source_storage.state.Phi[ct.impact.source]
 
-    ccinterfaceflux!(ct.crossterm_source, phi_s, value.(phi_t))
-    ccinterfaceflux!(ct.crossterm_target, value.(phi_s), phi_t)
+    ccinterfaceflux!(ct.crossterm_source, phi_s, value.(phi_t),trans)
+    ccinterfaceflux!(ct.crossterm_target, value.(phi_s), phi_t,trans)
 end
 
 # function update_cross_term!(
@@ -39,10 +39,11 @@ end
 #     ccinterfaceflux!(ct.crossterm_target, value.(phi_s), phi_t)
 # end
 
-function regularizedSqrt(x, th)
+function regularizedSqrt(x::T, th::Float64) where {T<:Any}
     #x,th = promote(xi,thi)
-    ind = (x <= th)
-    if !ind
+    y::T = 0.0
+    #ind = (x <= th)
+    if !(x <= th)
         y = x^0.5
     else
         y = x/th*sqrt(th)
@@ -93,7 +94,7 @@ function sourceElectricMaterial!(
             )
     
         eS[i] = -1.0 * vols[i] * R * n * FARADAY_CONST
-        eM[i] = +1.0 * vols[i] * R
+        eM[i] = +1.0 * vols[i] * R 
     end
     return (eS, eM)
 end
@@ -115,7 +116,7 @@ function update_cross_term!(
     R = source_storage.state.ReactionRateConst[ct.impact.source]
     c_e = target_storage.state.C[ct.impact.target]
     c_a = source_storage.state.C[ct.impact.source]
-    volume = source_model.domain.grid.volumes
+    volume = source_model.domain.grid.volumes[ct.impact.source]
     T = source_storage.state.T[ct.impact.source]
 
     eM  = similar(ct.crossterm_source)
@@ -153,7 +154,7 @@ function update_cross_term!(
     R = target_storage.state.ReactionRateConst[ct.impact.target]
     c_e = source_storage.state.C[ct.impact.source]
     c_a = target_storage.state.C[ct.impact.target]
-    volume = target_model.domain.grid.volumes
+    volume = target_model.domain.grid.volumes[ct.impact.target]
     T = target_storage.state.T[ct.impact.target]
 
     eM = similar(ct.crossterm_target)
@@ -190,7 +191,7 @@ function update_cross_term!(
     R = target_storage.state.ReactionRateConst[ct.impact.target]
     c_e = source_storage.state.C[ct.impact.source]
     c_a = target_storage.state.C[ct.impact.target]
-    volume = target_model.domain.grid.volumes
+    volume = target_model.domain.grid.volumes[ct.impact.target]
     T = target_storage.state.T[ct.impact.target]
 
     eE = similar(ct.crossterm_target)
@@ -227,7 +228,7 @@ function update_cross_term!(
     R = source_storage.state.ReactionRateConst[ct.impact.source]
     c_a = source_storage.state.C[ct.impact.source]
     c_e = target_storage.state.C[ct.impact.target]
-    volume = source_model.domain.grid.volumes
+    volume = source_model.domain.grid.volumes[ct.impact.source]
     T = source_storage.state.T[ct.impact.source]
 
     eE = similar(ct.crossterm_source)

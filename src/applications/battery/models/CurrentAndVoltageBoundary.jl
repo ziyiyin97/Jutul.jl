@@ -137,7 +137,7 @@ end
 
 #function select_secondary_variables_system!(S, domain, system::CurrentAndVoltageSystem, formulation)
 #end
-function sineup(y1, y2, x1, x2, x)
+function sineup(y1::T, y2::T, x1::T, x2::T, x::T) where {T<:Any}
     #SINEUP Creates a sine ramp function
     #
     #   res = sineup(y1, y2, x1, x2, x) creates a sine ramp
@@ -146,7 +146,7 @@ function sineup(y1, y2, x1, x2, x)
         
         dy = y1 - y2; 
         dx = abs(x1 - x2);
-        res = 0.0 
+        res::T = 0.0 
          if  (x >= x1) && (x <= x2)
             res = dy/2.0.*cos(pi.*(x - x1)./dx) + y1 - (dy/2) 
         end

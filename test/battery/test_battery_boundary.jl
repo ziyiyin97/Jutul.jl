@@ -18,10 +18,16 @@ struct SourceAtCell
     end 
 end
 
-function getHalftrans(exported_all,model1, model2, faces1,faces2,cell1,cells2)
+function getHalftrans(model1, model2, faces)
     T_all1 = model1["operators"]["T_all"]
-    T_all2 = model1["operators"]["T_all"]
-    T = 1.0./((1.0./T_all1[faces1])+(1.0./T_all1[faces2]))
+    T_all2 = model2["operators"]["T_all"]
+    T = 1.0./((1.0./T_all1[faces[:,1]])+(1.0./T_all2[faces[:,2]]))
+    return T
+    #N_all = Int64.(exported["G"]["faces"]["neighbors"])
+end
+function getHalftrans(model , faces)
+    T_all = model["operators"]["T_all"]
+    T = T_all[faces]
     return T
     #N_all = Int64.(exported["G"]["faces"]["neighbors"])
 end
@@ -33,7 +39,7 @@ function make_system(exported,sys,bcfaces,srccells)
     @assert all(isboundary)
     #bcfaces = exported_all["model"]["NegativeElectrode"]["CurrentCollector"]["couplingTerm"]["couplingcells"]
     bccells = N_all[bcfaces,1] + N_all[bcfaces,2]
-    T_hf   = T_all[bcfaces]
+    T_hf   = -T_all[bcfaces]
     bcvaluesrc = ones(size(srccells))
     bcvaluephi = ones(size(bccells)).*0.0
 
@@ -235,10 +241,16 @@ function setup_coupling!(model, exported_all)
     trange = Int64.(
         exported_all["model"]["NegativeElectrode"]["couplingTerm"]["couplingcells"][:,2]
         )
+    msource =   exported_all["model"]["NegativeElectrode"]["CurrentCollector"]
+    mtarget =   exported_all["model"]["NegativeElectrode"]["ElectrodeActiveComponent"]
+    couplingfaces = exported_all["model"]["NegativeElectrode"]["couplingTerm"]["couplingfaces"]
+    trans = getHalftrans(msource, mtarget, Int64.(couplingfaces))
+    #trans = getHalftrans(msource, Int64.(couplingfaces[:1]))
+    properties = Dict(:trans => trans*100)    
     intersection = ( srange, trange, Cells(), Cells())
     crosstermtype = InjectiveCrossTerm
     issym = true
-    coupling = MultiModelCoupling(source, target, intersection; crosstype = crosstermtype, issym = issym)
+    coupling = MultiModelCoupling(source, target, intersection; crosstype = crosstermtype, properties = properties, issym = issym)
     push!(model.couplings, coupling)
 
     # setup coupling NAM <-> ELYTE charge
@@ -326,10 +338,15 @@ function setup_coupling!(model, exported_all)
     trange = Int64.(
         exported_all["model"]["PositiveElectrode"]["couplingTerm"]["couplingcells"][:,2]
         )
+    msource =   exported_all["model"]["PositiveElectrode"]["CurrentCollector"]
+    mtarget =   exported_all["model"]["PositiveElectrode"]["ElectrodeActiveComponent"]
+    couplingfaces = exported_all["model"]["PositiveElectrode"]["couplingTerm"]["couplingfaces"]
+    trans = getHalftrans(msource, mtarget, Int64.(couplingfaces))
+    properties = Dict(:trans => trans)    
     intersection = (srange, trange, Cells(), Cells())
     crosstermtype = InjectiveCrossTerm
     issym = true
-    coupling = MultiModelCoupling(source,target, intersection; crosstype = crosstermtype, issym = issym)
+    coupling = MultiModelCoupling(source,target, intersection; crosstype = crosstermtype, properties = properties, issym = issym)
     push!(model.couplings, coupling)
     
     #setup coupling PP <-> PAM charge
@@ -345,7 +362,12 @@ function setup_coupling!(model, exported_all)
             exported_all["model"]["PositiveElectrode"]["CurrentCollector"]["couplingTerm"]["couplingcells"]
         )    
     srange = Int64.(ones(size(trange)))
-        
+    msource =   exported_all["model"]["PositiveElectrode"]["CurrentCollector"]
+    couplingfaces = exported_all["model"]["PositiveElectrode"]["CurrentCollector"]["couplingTerm"]["couplingfaces"]
+    trans = getHalftrans(msource, Int64.(couplingfaces))
+    properties = Dict(:trans => trans)    
+    intersection = (srange, trange, Cells(), Cells())
+    crosstermtype = InjectiveCrossTerm  
     #T_all = exported["operators"]["T_all"]
     #N_all = Int64.(exported["G"]["faces"]["neighbors"])
     #isboundary = (N_all[bcfaces,1].==0) .| (N_all[bcfaces,2].==0)
@@ -357,7 +379,7 @@ function setup_coupling!(model, exported_all)
     intersection = (srange, trange, Cells(), Cells())
     crosstermtype = InjectiveCrossTerm
     issym = true
-    coupling = MultiModelCoupling(source,target, intersection; crosstype = crosstermtype, issym = issym)
+    coupling = MultiModelCoupling(source,target, intersection; crosstype = crosstermtype, properties = properties, issym = issym)
     
     push!(model.couplings, coupling)
 
@@ -386,14 +408,16 @@ end
 
 
 ##
-function currentFun(t,inputI)
+function currentFun(t::T,inputI::T) where {T<:Any}
     #inputI = 9.4575
     tup = 0.1
+    val::T = 0.0
     if ( t<= tup)
-        val = sineup(0, inputI, 0, tup, t) 
+        val = sineup(0.0, inputI, 0.0, tup, t) 
     else
         val = inputI;
     end
+    return val
 end
 
 function test_battery(name)
@@ -424,14 +448,22 @@ function test_battery(name)
     #parameters[:PP][:charge_conservation]=1e-3
     sim = Simulator(model, state0 = state0, parameters = parameters, copy_state = true)
     #timesteps = exported_all["schedule"]["step"]["val"][1:27]
-    timesteps = exported_all["schedule"]["step"]["val"][1:29]
+    steps = size(exported_all["states"],1)
+    alltimesteps = Vector{Float64}(undef,steps)
+    time = 0;
+    for i = 1:steps
+        alltimesteps[i] =  exported_all["states"][i]["time"]-time
+        time = exported_all["states"][i]["time"]
+    end
+
+    timesteps = alltimesteps[1:50]
     cfg = simulator_config(sim)
     cfg = simulator_config(sim)
     cfg[:linear_solver] = nothing
-    cfg[:info_level] = 2
+    cfg[:info_level] = 3
     cfg[:debug_level] = 0
     cfg[:max_residual] = 1e20
-    cfg[:min_nonlinear_iterations] = 3
+    cfg[:min_nonlinear_iterations] = 10
     cfg[:extra_timing] = true
 ##
 
@@ -444,8 +476,8 @@ end
 ##
 name="model1d_notemp"
 name="model1D_50"
-#name="model1D_500"
-#name="model1D_5000"
+name="model1D_500"
+%name="model1D_5000"
 #name="model2D_1100"
 #name="sector_1656"
 #name="model3D_492"#.mat
@@ -457,9 +489,9 @@ states, grids, state0, stateref, parameters, exported_all, model, timesteps, cfg
 steps = size(states, 1)
 E = Matrix{Float64}(undef,steps,2)
 for step in 1:steps
-    phi = states[step][:PP][:Phi][10]
+    phi = states[step][:BPP][:Phi][1]
     E[step,1] = phi
-    phi_ref = stateref[step]["PositiveElectrode"]["ElectrodeActiveComponent"]["phi"][10]
+    phi_ref = stateref[step]["PositiveElectrode"]["CurrentCollector"]["E"]
     E[step,2] = phi_ref
 end
 plot1 = Plots.plot([], []; title = "E", size=(1000, 800))
@@ -497,7 +529,7 @@ display(plot1)
 ##
 
 #for (i, dt) in enumerate(timesteps)
-for i in 1:15   
+for i in 1:1   
     refstep=i
     sim_step=i
 
@@ -639,6 +671,7 @@ end
 
 plot(E)
 ##
+
 i=4;plot([states[i][:ELYTE][:C], stateref[i]["Electrolyte"]["cs"][:,1]])
 ##
 i=10;plot([states[i][:PAM][:C], stateref[i]["Electrolyte"]["cs"][:,1]])
