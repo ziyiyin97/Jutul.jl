@@ -189,7 +189,7 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     wells = sort!(collect(keys(wd)))
     nw = length(wells)
     if isnothing(cmap)
-        cmap = cgrad(:Paired_12, 20, categorical=true)
+        cmap = cgrad(:Paired_12, nw, categorical=true)
     end
     wellstr = [String(x) for x in wells]
     # well_ix = Observable(1)
