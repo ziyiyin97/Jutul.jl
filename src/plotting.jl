@@ -275,10 +275,13 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     # series!(ax, d, labels = labels, color=:tab20; kwarg...)
 
     # series!(ax, d, labels = names, color=:tab20; kwarg...)
-    if ndata > 1 || true
-        # fig[1, 2] = Legend(fig, ax, "Dataset")
+    if ndata > 1
+        elems = []
+        for i = 1:ndata
+            push!(elems, LineElement(color = :black, linestyle = styles[i], linewidth = linewidth*(1 + 0.5*Float64(i > 1))))
+        end
+        fig[2, 2:3] = Legend(fig, elems, names, patchsize = (100, 20))
     end
-
 
     return fig
 end
