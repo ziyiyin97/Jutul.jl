@@ -38,12 +38,20 @@ end
 
 export full_well_outputs, well_output, well_symbols, wellgroup_symbols, available_well_targets
 
+translate_target_to_symbol(t) = Symbol(t)
+translate_target_to_symbol(t::BottomHolePressureTarget) = Symbol("Bottom hole pressure")
+translate_target_to_symbol(t::TotalRateTarget) = Symbol("Surface total rate")
+translate_target_to_symbol(t::SurfaceWaterRateTarget) = Symbol("Surface water rate")
+translate_target_to_symbol(t::SurfaceLiquidRateTarget) = Symbol("Surface liquid rate (water + oil)")
+translate_target_to_symbol(t::SurfaceOilRateTarget) = Symbol("Surface oil rate")
+translate_target_to_symbol(t::SurfaceGasRateTarget) = Symbol("Surface gas rate")
+
 function full_well_outputs(model, parameters, states; targets = available_well_targets(model.models.Reservoir))
     out = Dict()
     for w in well_symbols(model)
         out[w] = Dict()
         for t in targets
-            out[w][Symbol(t)] = well_output(model, parameters, states, w, t)
+            out[w][translate_target_to_symbol(t(1.0))] = well_output(model, parameters, states, w, t)
         end
     end
     return out
