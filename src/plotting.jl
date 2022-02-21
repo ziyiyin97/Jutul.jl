@@ -178,12 +178,14 @@ end
 
 function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(well_data)], kwarg...)
     # Figure part
+    ndata = length(well_data)
     fig = Figure()
     ax = Axis(fig[1, 1], xlabel = "Time (days)")
 
     wd = first(well_data)
     # Selected well
     wells = collect(keys(wd))
+    nw = length(wells)
     wellstr = [String(x) for x in wells]
     well_ix = Observable(1)
     menu = Menu(fig, options = wellstr, prompt = wellstr[1])
@@ -210,14 +212,48 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
         menu,
         menu2)
     function get_data(wix, rix)
-        tmp = map(x -> x[wells[wix]][responses[rix]], well_data)
-        return hcat(tmp...)'
-    end
-    n = length(wd[wells[1]][responses[1]])
-    d = @lift(get_data($well_ix, $response_ix))
-    series!(ax, d, labels = names; kwarg...)
+        @info rix responses
 
-    fig[1, 2] = Legend(fig, ax, "Dataset")
+        # tmp = map(w -> well_data[1][w][responses[rix]], wells)
+        # tmp = map(x -> x[wells[wix]][responses[rix]], well_data)
+        tmp = well_data[1][wells[wix]][responses[rix]]
+        return tmp
+    end
+    if ndata > 1
+        labels = []
+        for i = 1:ndata
+            # for j = 1
+        end
+    else
+        labels = wellstr
+    end
+    @info "st" responses wells
+    @info "Hey" get_data(1, 1)
+    n = length(wd[wells[1]][responses[1]])
+    # d = @lift(get_data($well_ix, $response_ix))
+    
+    toggles = [Toggle(fig) for w in wells]
+    labels = [Label(fig, w) for w in wellstr]
+    # labels = [Label(fig, lift(x -> x ? "$l visible" : "$l invisible", t.active))
+    #     for (t, l) in zip(toggles, ["sine", "cosine"])]
+
+    fig[1, 3] = grid!(hcat(toggles, labels), tellheight = false)
+
+
+    lineh = []
+    for i in 1:nw
+        d = @lift(get_data(i, $response_ix))
+        h = lines!(ax, d, label = labels[i])
+        connect!(h.visible, toggles[i].active)
+        push!(lineh, h)
+    end
+    # series!(ax, d, labels = labels, color=:tab20; kwarg...)
+
+    # series!(ax, d, labels = names, color=:tab20; kwarg...)
+    if ndata > 1 || true
+        # fig[1, 2] = Legend(fig, ax, "Dataset")
+    end
+
 
     return fig
 end
