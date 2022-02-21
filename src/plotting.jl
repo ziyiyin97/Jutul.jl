@@ -187,13 +187,13 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     wells = sort!(collect(keys(wd)))
     nw = length(wells)
     wellstr = [String(x) for x in wells]
-    well_ix = Observable(1)
-    menu = Menu(fig, options = wellstr, prompt = wellstr[1])
-    on(menu.selection) do s
-        val = findfirst(isequal(s), wellstr)
-        well_ix[] = val
-        autolimits!(ax)
-    end
+    # well_ix = Observable(1)
+    # menu = Menu(fig, options = wellstr, prompt = wellstr[1])
+    # on(menu.selection) do s
+    #    val = findfirst(isequal(s), wellstr)
+    #    well_ix[] = val
+    #    autolimits!(ax)
+    #end
 
     # Type of plot (bhp, rate...)
     responses = collect(keys(wd[first(wells)]))
@@ -209,7 +209,7 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
 
     # Lay out and do plotting
     fig[2, 1] = hgrid!(
-        menu,
+        # menu,
         menu2)
     function get_data(wix, rix)
         @info rix responses
@@ -227,9 +227,7 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     else
         labels = wellstr
     end
-    @info "st" responses wells
-    @info "Hey" get_data(1, 1)
-    n = length(wd[wells[1]][responses[1]])
+    # n = length(wd[wells[1]][responses[1]])
     # d = @lift(get_data($well_ix, $response_ix))
     
     toggles = [Toggle(fig, active = true) for w in wells]
@@ -237,23 +235,12 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     # labels = [Label(fig, lift(x -> x ? "$l visible" : "$l invisible", t.active))
     #     for (t, l) in zip(toggles, ["sine", "cosine"])]
 
-    bgrid = []
     tmp = hcat(toggles, labels)
-    if false
-        N = div(length(tmp), 2, RoundUp)
-        for i = 1:N
-            l = i
-            r = 2*N + i
-            push!(bgrid, [i, 1] => tmp[l])
-            if r <= length(tmp)
-                push!(d, [i, 2] => tmp[r])
-            end
-        end
-    else
-        bgrid = tmp
-    end
-    fig[1, 2] = grid!(bgrid, tellheight = false)
-
+    bgrid = tmp
+    N = size(bgrid, 1)
+    M = div(N, 2, RoundUp)
+    fig[1, 2] = grid!(bgrid[1:M, :], tellheight = false)
+    fig[1, 3] = grid!(bgrid[(M+1):N, :], tellheight = false)
 
     lineh = []
     for i in 1:nw
