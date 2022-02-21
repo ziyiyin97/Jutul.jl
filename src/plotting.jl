@@ -1,5 +1,6 @@
 export plot_well!, plot_interactive, plot_well_results
 using .GLMakie
+using ColorSchemes
 function plot_interactive(grid, states; plot_type = nothing, wells = nothing, kwarg...)
     pts, tri, mapper = triangulate_outer_surface(grid)
 
@@ -176,9 +177,10 @@ function plot_well_results(well_data::Dict; name = "Data")
     plot_well_results([well_data], names = [name])
 end
 
-function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(well_data)], kwarg...)
+function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(well_data)], linewidth = 3, cmap = nothing, kwarg...)
     # Figure part
     ndata = length(well_data)
+    @assert ndata <= 5 "Maximum of five datasets plotted simultaneously."
     fig = Figure()
     ax = Axis(fig[1, 1], xlabel = "Time (days)")
 
@@ -186,6 +188,9 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     # Selected well
     wells = sort!(collect(keys(wd)))
     nw = length(wells)
+    if isnothing(cmap)
+        cmap = cgrad(:Paired_12, 20, categorical=true)
+    end
     wellstr = [String(x) for x in wells]
     # well_ix = Observable(1)
     # menu = Menu(fig, options = wellstr, prompt = wellstr[1])
@@ -211,12 +216,12 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     fig[2, 1] = hgrid!(
         # menu,
         menu2)
-    function get_data(wix, rix)
+    function get_data(wix, rix, dataix)
         @info rix responses
 
         # tmp = map(w -> well_data[1][w][responses[rix]], wells)
         # tmp = map(x -> x[wells[wix]][responses[rix]], well_data)
-        tmp = well_data[1][wells[wix]][responses[rix]]
+        tmp = well_data[dataix][wells[wix]][responses[rix]]
         return tmp
     end
     if ndata > 1
@@ -230,7 +235,8 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     # n = length(wd[wells[1]][responses[1]])
     # d = @lift(get_data($well_ix, $response_ix))
     
-    toggles = [Toggle(fig, active = true) for w in wells]
+    lighten(x) = GLMakie.ARGB(x.r, x.g, x.b, 0.2)
+    toggles = [Toggle(fig, active = true, buttoncolor = cmap[i], framecolor_active = lighten(cmap[i])) for i in eachindex(wells)]
     labels = [Label(fig, w) for w in wellstr]
     # labels = [Label(fig, lift(x -> x ? "$l visible" : "$l invisible", t.active))
     #     for (t, l) in zip(toggles, ["sine", "cosine"])]
@@ -243,17 +249,28 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     fig[1, 3] = grid!(bgrid[(M+1):N, :], tellheight = false)
 
     lineh = []
-    for i in 1:nw
-        d = @lift(get_data(i, $response_ix))
-        h = lines!(ax, d, label = labels[i], linewidth = 3)
-        t = toggles[i]
-        C = h.color[]
-        t.buttoncolor = C
-        t.framecolor_active = C + GLMakie.RGBA{Float32}(0.2,0.2,0.2,0.5f0)
-        # notify(t.active)
-        # @info h.color
-        connect!(h.visible, t.active)
-        push!(lineh, h)
+    styles = [nothing, :dash, :dot, :dashdot, :dashdotdot]
+    for dix = 1:ndata
+        for i in 1:nw
+            d = @lift(get_data(i, $response_ix, dix))
+            if dix > 1
+                lw = 1.5*linewidth
+            else
+                lw = linewidth
+            end
+
+            h = lines!(ax, d, label = labels[i], linewidth = lw, linestyle = styles[dix], color = cmap[i])
+            t = toggles[i]
+            if dix == 1 && false
+                C = h.color[]
+                t.buttoncolor = C
+                t.framecolor_active = C + GLMakie.RGBA{Float32}(0.2,0.2,0.2,0.5f0)
+            end
+            # notify(t.active)
+            # @info h.color
+            connect!(h.visible, t.active)
+            push!(lineh, h)
+        end
     end
     # series!(ax, d, labels = labels, color=:tab20; kwarg...)
 
