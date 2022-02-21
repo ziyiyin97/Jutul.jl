@@ -184,7 +184,7 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
 
     wd = first(well_data)
     # Selected well
-    wells = collect(keys(wd))
+    wells = sort!(collect(keys(wd)))
     nw = length(wells)
     wellstr = [String(x) for x in wells]
     well_ix = Observable(1)
@@ -232,19 +232,40 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     n = length(wd[wells[1]][responses[1]])
     # d = @lift(get_data($well_ix, $response_ix))
     
-    toggles = [Toggle(fig) for w in wells]
+    toggles = [Toggle(fig, active = true) for w in wells]
     labels = [Label(fig, w) for w in wellstr]
     # labels = [Label(fig, lift(x -> x ? "$l visible" : "$l invisible", t.active))
     #     for (t, l) in zip(toggles, ["sine", "cosine"])]
 
-    fig[1, 3] = grid!(hcat(toggles, labels), tellheight = false)
+    bgrid = []
+    tmp = hcat(toggles, labels)
+    if false
+        N = div(length(tmp), 2, RoundUp)
+        for i = 1:N
+            l = i
+            r = 2*N + i
+            push!(bgrid, [i, 1] => tmp[l])
+            if r <= length(tmp)
+                push!(d, [i, 2] => tmp[r])
+            end
+        end
+    else
+        bgrid = tmp
+    end
+    fig[1, 2] = grid!(bgrid, tellheight = false)
 
 
     lineh = []
     for i in 1:nw
         d = @lift(get_data(i, $response_ix))
-        h = lines!(ax, d, label = labels[i])
-        connect!(h.visible, toggles[i].active)
+        h = lines!(ax, d, label = labels[i], linewidth = 3)
+        t = toggles[i]
+        C = h.color[]
+        t.buttoncolor = C
+        t.framecolor_active = C + GLMakie.RGBA{Float32}(0.2,0.2,0.2,0.5f0)
+        # notify(t.active)
+        # @info h.color
+        connect!(h.visible, t.active)
         push!(lineh, h)
     end
     # series!(ax, d, labels = labels, color=:tab20; kwarg...)
