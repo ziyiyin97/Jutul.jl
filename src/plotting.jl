@@ -182,7 +182,7 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     ndata = length(well_data)
     @assert ndata <= 5 "Maximum of five datasets plotted simultaneously."
     fig = Figure()
-    ax = Axis(fig[1, 1], xlabel = "Time (days)")
+    ax = Axis(fig[1:2, 1], xlabel = "Time (days)")
 
     wd = first(well_data)
     # Selected well
@@ -192,13 +192,6 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
         cmap = cgrad(:Paired_12, nw, categorical=true)
     end
     wellstr = [String(x) for x in wells]
-    # well_ix = Observable(1)
-    # menu = Menu(fig, options = wellstr, prompt = wellstr[1])
-    # on(menu.selection) do s
-    #    val = findfirst(isequal(s), wellstr)
-    #    well_ix[] = val
-    #    autolimits!(ax)
-    #end
 
     # Type of plot (bhp, rate...)
     responses = collect(keys(wd[first(wells)]))
@@ -213,7 +206,7 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     end
 
     # Lay out and do plotting
-    fig[2, 1] = hgrid!(
+    fig[2, 2:3] = hgrid!(
         # menu,
         menu2)
     function get_data(wix, rix, dataix)
@@ -251,15 +244,10 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
                 h = lines!(ax, d, label = labels[i], linewidth = linewidth, linestyle = style, color = cmap[i])
             end
             t = toggles[i]
-            # notify(t.active)
-            # @info h.color
             connect!(h.visible, t.active)
             push!(lineh, h)
         end
     end
-    # series!(ax, d, labels = labels, color=:tab20; kwarg...)
-
-    # series!(ax, d, labels = names, color=:tab20; kwarg...)
     if ndata > 1
         elems = []
         for i = 1:ndata
