@@ -212,16 +212,19 @@ function plot_well_results(well_data::Vector, time = nothing; names =["Dataset $
     fig[2, 2:3] = hgrid!(
         type_menu)
 
-    b1 = Button(fig, label = "Zoom x")
-    b2 = Button(fig, label = "Zoom y")
-
-    buttongrid = GridLayout(tellwidth = false)
-    buttongrid[1, 1] = b1
-    buttongrid[1, 2] = b2
-
-    on(b1.clicks) do n
-        xlims!(ax, (nothing, nothing))
+    b_xlim = Button(fig, label = "Reset x")
+    on(b_xlim.clicks) do n
+        reset_limits!(ax; xauto = true, yauto = false)
     end
+    b_ylim = Button(fig, label = "Reset y")
+    on(b_ylim.clicks) do n
+        reset_limits!(ax; xauto = false, yauto = true)
+    end
+    buttongrid = GridLayout(tellwidth = false)
+    buttongrid[1, 1] = b_xlim
+    buttongrid[1, 2] = b_ylim
+
+
 
     # Lay out and do plotting
     fig[2, 1] = buttongrid
