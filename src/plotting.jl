@@ -177,12 +177,17 @@ function plot_well_results(well_data::Dict; name = "Data")
     plot_well_results([well_data], names = [name])
 end
 
-function plot_well_results(well_data::Vector, time = nothing; names =["$i" for i in 1:length(well_data)], linewidth = 3, cmap = nothing, kwarg...)
+function plot_well_results(well_data::Vector, time = nothing; names =["Dataset $i" for i in 1:length(well_data)], linewidth = 3, cmap = nothing, kwarg...)
     # Figure part
     ndata = length(well_data)
     @assert ndata <= 5 "Maximum of five datasets plotted simultaneously."
     fig = Figure()
-    ax = Axis(fig[1, 1], xlabel = "Time-step")
+    if isnothing(time)
+        t_l = "Time-step"
+    else
+        t_l = "Time [days]"
+    end
+    ax = Axis(fig[1, 1], xlabel = t_l, tellwidth = false, tellheight = false)
 
     wd = first(well_data)
     # Selected well
@@ -197,30 +202,46 @@ function plot_well_results(well_data::Vector, time = nothing; names =["$i" for i
     responses = collect(keys(wd[first(wells)]))
     respstr = [String(x) for x in responses]
     response_ix = Observable(1)
-    menu2 = Menu(fig, options = respstr, prompt = respstr[1])
+    type_menu = Menu(fig, options = respstr, prompt = respstr[1])
 
-    on(menu2.selection) do s
+    on(type_menu.selection) do s
         val = findfirst(isequal(s), respstr)
         response_ix[] = val
         autolimits!(ax)
     end
+    fig[2, 2:3] = hgrid!(
+        type_menu)
+
+    b1 = Button(fig, label = "Zoom x")
+    b2 = Button(fig, label = "Zoom y")
+
+    buttongrid = GridLayout(tellwidth = false)
+    buttongrid[1, 1] = b1
+    buttongrid[1, 2] = b2
+
+    on(b1.clicks) do n
+        xlims!(ax, (nothing, nothing))
+    end
 
     # Lay out and do plotting
-    fig[2, 2:3] = hgrid!(
-        # menu,
-        menu2)
+    fig[2, 1] = buttongrid
     function get_data(wix, rix, dataix)
         tmp = well_data[dataix][wells[wix]][responses[rix]]
         return tmp
     end
-    if ndata > 1
-        labels = []
-        for i = 1:ndata
-            # for j = 1
-        end
+
+    sample = map(x -> get_data(1, 1, x), 1:ndata)
+    if isnothing(time)
+        time = map(s -> 1:length(s), sample)
     else
-        labels = wellstr
+        if eltype(time)<:AbstractFloat
+            time = repeat(time, ndata)
+        end
     end
+    for i = 1:ndata
+        @assert length(time[i]) == length(sample[i])
+    end
+
     lighten(x) = GLMakie.ARGB(x.r, x.g, x.b, 0.2)
     toggles = [Toggle(fig, active = true, buttoncolor = cmap[i], framecolor_active = lighten(cmap[i])) for i in eachindex(wells)]
     labels = [Label(fig, w) for w in wellstr]
@@ -229,19 +250,20 @@ function plot_well_results(well_data::Vector, time = nothing; names =["$i" for i
     bgrid = tmp
     N = size(bgrid, 1)
     M = div(N, 2, RoundUp)
-    fig[1, 2] = grid!(bgrid[1:M, :], tellheight = true)
-    fig[1, 3] = grid!(bgrid[(M+1):N, :], tellheight = true)
+    fig[1, 2] = grid!(bgrid[1:M, :], tellheight = false)
+    fig[1, 3] = grid!(bgrid[(M+1):N, :], tellheight = false)
 
     lineh = []
     styles = [nothing, :dash, :scatter, :dashdot, :dot, :dashdotdot]
     for dix = 1:ndata
+        T = time[dix]
         for i in 1:nw
             d = @lift(get_data(i, $response_ix, dix))
             style = styles[dix]
             if style == :scatter
-                h = scatter!(ax, d, label = labels[i], color = cmap[i], linewidth = linewidth, marker = :circle)
+                h = scatter!(ax, T, d, color = cmap[i], linewidth = linewidth, marker = :circle)
             else
-                h = lines!(ax, d, label = labels[i], linewidth = linewidth, linestyle = style, color = cmap[i])
+                h = lines!(ax, T, d, linewidth = linewidth, linestyle = style, color = cmap[i])
             end
             t = toggles[i]
             connect!(h.visible, t.active)
