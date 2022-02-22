@@ -271,7 +271,12 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
             end
             push!(elems, el)
         end
-        fig[2, 2:3] = Legend(fig, elems, names, patchsize = (100, 20))
+        fig[1, 1] = Legend(fig, elems, names,
+                        tellheight = false,
+                        tellwidth = false,
+                        margin = (10, 10, 10, 10),
+                        halign = :left, valign = :top, orientation = :horizontal
+        )
     end
 
     return fig
