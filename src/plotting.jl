@@ -217,10 +217,6 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
         # menu,
         menu2)
     function get_data(wix, rix, dataix)
-        @info rix responses
-
-        # tmp = map(w -> well_data[1][w][responses[rix]], wells)
-        # tmp = map(x -> x[wells[wix]][responses[rix]], well_data)
         tmp = well_data[dataix][wells[wix]][responses[rix]]
         return tmp
     end
@@ -232,14 +228,9 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     else
         labels = wellstr
     end
-    # n = length(wd[wells[1]][responses[1]])
-    # d = @lift(get_data($well_ix, $response_ix))
-    
     lighten(x) = GLMakie.ARGB(x.r, x.g, x.b, 0.2)
     toggles = [Toggle(fig, active = true, buttoncolor = cmap[i], framecolor_active = lighten(cmap[i])) for i in eachindex(wells)]
     labels = [Label(fig, w) for w in wellstr]
-    # labels = [Label(fig, lift(x -> x ? "$l visible" : "$l invisible", t.active))
-    #     for (t, l) in zip(toggles, ["sine", "cosine"])]
 
     tmp = hcat(toggles, labels)
     bgrid = tmp
@@ -249,23 +240,18 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     fig[1, 3] = grid!(bgrid[(M+1):N, :], tellheight = false)
 
     lineh = []
-    styles = [nothing, :dash, :dot, :dashdot, :dashdotdot]
+    styles = [nothing, :dash, :dashdot, :dot, :dashdotdot]
     for dix = 1:ndata
         for i in 1:nw
             d = @lift(get_data(i, $response_ix, dix))
             if dix > 1
-                lw = 1.5*linewidth
+                lw = linewidth#1.5*linewidth
             else
                 lw = linewidth
             end
 
             h = lines!(ax, d, label = labels[i], linewidth = lw, linestyle = styles[dix], color = cmap[i])
             t = toggles[i]
-            if dix == 1 && false
-                C = h.color[]
-                t.buttoncolor = C
-                t.framecolor_active = C + GLMakie.RGBA{Float32}(0.2,0.2,0.2,0.5f0)
-            end
             # notify(t.active)
             # @info h.color
             connect!(h.visible, t.active)
