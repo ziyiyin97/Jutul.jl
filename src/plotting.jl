@@ -177,12 +177,12 @@ function plot_well_results(well_data::Dict; name = "Data")
     plot_well_results([well_data], names = [name])
 end
 
-function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(well_data)], linewidth = 3, cmap = nothing, kwarg...)
+function plot_well_results(well_data::Vector, time = nothing; names =["$i" for i in 1:length(well_data)], linewidth = 3, cmap = nothing, kwarg...)
     # Figure part
     ndata = length(well_data)
     @assert ndata <= 5 "Maximum of five datasets plotted simultaneously."
     fig = Figure()
-    ax = Axis(fig[1:2, 1], xlabel = "Time (days)")
+    ax = Axis(fig[1, 1], xlabel = "Time-step")
 
     wd = first(well_data)
     # Selected well
@@ -229,8 +229,8 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     bgrid = tmp
     N = size(bgrid, 1)
     M = div(N, 2, RoundUp)
-    fig[1, 2] = grid!(bgrid[1:M, :], tellheight = false)
-    fig[1, 3] = grid!(bgrid[(M+1):N, :], tellheight = false)
+    fig[1, 2] = grid!(bgrid[1:M, :], tellheight = true)
+    fig[1, 3] = grid!(bgrid[(M+1):N, :], tellheight = true)
 
     lineh = []
     styles = [nothing, :dash, :scatter, :dashdot, :dot, :dashdotdot]
