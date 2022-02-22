@@ -240,17 +240,16 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     fig[1, 3] = grid!(bgrid[(M+1):N, :], tellheight = false)
 
     lineh = []
-    styles = [nothing, :dash, :dashdot, :dot, :dashdotdot]
+    styles = [nothing, :dash, :scatter, :dashdot, :dot, :dashdotdot]
     for dix = 1:ndata
         for i in 1:nw
             d = @lift(get_data(i, $response_ix, dix))
-            if dix > 1
-                lw = linewidth#1.5*linewidth
+            style = styles[dix]
+            if style == :scatter
+                h = scatter!(ax, d, label = labels[i], color = cmap[i], linewidth = linewidth, marker = :circle)
             else
-                lw = linewidth
+                h = lines!(ax, d, label = labels[i], linewidth = linewidth, linestyle = style, color = cmap[i])
             end
-
-            h = lines!(ax, d, label = labels[i], linewidth = lw, linestyle = styles[dix], color = cmap[i])
             t = toggles[i]
             # notify(t.active)
             # @info h.color
@@ -264,7 +263,13 @@ function plot_well_results(well_data::Vector; names =["$i" for i in 1:length(wel
     if ndata > 1
         elems = []
         for i = 1:ndata
-            push!(elems, LineElement(color = :black, linestyle = styles[i], linewidth = linewidth*(1 + 0.5*Float64(i > 1))))
+            style = styles[i]
+            if style == :scatter
+                el = MarkerElement(color = :black, linewidth = linewidth, marker = :circle)
+            else
+                el = LineElement(color = :black, linestyle = styles[i], linewidth = linewidth)
+            end
+            push!(elems, el)
         end
         fig[2, 2:3] = Legend(fig, elems, names, patchsize = (100, 20))
     end
