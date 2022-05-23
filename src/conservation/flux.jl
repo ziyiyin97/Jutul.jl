@@ -1,8 +1,8 @@
-export SPU, TPFA, TwoPointPotentialFlow, FlowType, TrivialFlow, get_neighborship
+export SPU, TPFA, TwoPointPotentialFlow, FlowType, TrivialFlow, get_neighborship, get_connection
 
 abstract type TwoPointDiscretization <: JutulDiscretization end
 
-export PotentialFlowDiscretization, TwoPointDiscretization, KGradDiscretization, UpwindDiscretization
+export FlowDiscretization, PotentialFlowDiscretization, TwoPointDiscretization, KGradDiscretization, UpwindDiscretization
 
 abstract type PotentialFlowDiscretization <: JutulDiscretization end
 abstract type KGradDiscretization <: PotentialFlowDiscretization end
