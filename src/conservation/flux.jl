@@ -126,7 +126,7 @@ function TwoPointPotentialFlowHardCoded(grid::AbstractJutulMesh; ncells = nothin
         get_el = (face, cell) -> get_connection(face, cell, N, true)
         el = get_el(1, 1) # Could be junk, we just need eltype
         conn_data = Vector{typeof(el)}(undef, nhf)
-        @batch for cell = 1:nc
+        @batch minbatch=1000 for cell = 1:nc
                 @inbounds for fpos = face_pos[cell]:(face_pos[cell+1]-1)
                 conn_data[fpos] = get_el(faces[fpos], cell)
             end

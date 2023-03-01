@@ -20,7 +20,7 @@ function prepare_solve!(sys::MultiLinearizedSystem)
         b_buf, = sys.schur_buffer[2]
         # The following is the in-place version of a -= C*(E\b)
         n = length(E)
-        @batch for i in 1:n
+        @batch minbatch=1000 for i in 1:n
             b_buf, = sys.schur_buffer[i+1]
             ldiv!(b_buf, E[i], b[i])
         end
@@ -141,7 +141,7 @@ end
         # res ← β*res + α*(B*x - C*(E\(D*x)))
         n = length(D)
         mul!(res_v, B, x_v, α, β)
-        @batch for i = 1:n
+        @batch minbatch=1000 for i = 1:n
             @inbounds b_buf_1, b_buf_2 = schur_buffers[i+1]
             @inbounds D_i = D[i]
             @inbounds E_i = E[i]
